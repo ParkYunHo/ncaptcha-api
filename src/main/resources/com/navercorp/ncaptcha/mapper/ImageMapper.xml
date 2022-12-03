@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.navercorp.ncaptcha.mapper.ImageMapper">
+	<select id="selectExamImageInfoList" resultType="com.navercorp.ncaptcha.domain.ExamImageInfoVO" parameterType="int">
+		<![CDATA[select image_pk as imageKey, typeName, b64
+		from (
+			select image_pk, imgType.typeName, b64, row_number() over(partition by imgInfo.imageType_fk) rowNo 
+			from image_info imgInfo
+			join image_usage_type usageType on imgInfo.imageUsageType_fk = usageType.imageUsageType_pk and usageType.typeName = 'exam' 
+			join image_type imgtype on imgInfo.imageType_fk = imgtype.imageType_pk
+			where IsUsed=0 	
+		) imgAllInfo
+		where rowNo <= #{rowNo}
+		order by typeName]]>
+	</select>
+
+	<update id="updateExamImageInfoList" parameterType="int">
+		<![CDATA[
+		update image_info set IsUsed=1
+		where image_pk in (
+			select image_pk
+			from (
+				select image_pk, row_number() over(partition by imgInfo.imageType_fk) rowNo 
+				from image_info imgInfo
+				join image_usage_type usageType on imgInfo.imageUsageType_fk = usageType.imageUsageType_pk and usageType.typeName = 'exam' 
+				where IsUsed=0 	
+			) imgAllInfo
+			where rowNo <= #{rowNo}
+		)
+		]]>
+	</update>
+
+	<select id="selectImageTypeListCnt" resultType="int">
+		select count(*) from image_type;
+	</select>
+
+	<select id="selectImageUsageTypeListCnt" resultType="int">
+		select count(*) from image_usage_type;
+	</select>
+
+	<insert id="insertImageTypeList" parameterType="java.util.List">
+		insert into image_type (typeName) values
+		<foreach collection="list" item="item" separator=" , ">
+			(#{item})
+		</foreach>
+	</insert>
+	
+	<insert id="insertImageUsageTypeList" parameterType="java.util.List">
+		insert into image_usage_type (typeName) values
+		<foreach collection="list" item="item" separator=" , ">
+			(#{item})
+		</foreach>
+	</insert>
+</mapper>
